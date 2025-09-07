@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+frontend/node_modules/
+backend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -136,3 +138,12 @@ coverage/
 # Backup files
 *.backup
 *.bak
+
+# Test outputs and development artifacts
+*-test-output.txt
+*-output.txt
+test-output-*.txt
+
+# Project documentation (auto-generated)
+CLAUDE.md
+TODO.md

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text Test - AURA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #fff, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .status {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        .status.idle {
+            background: rgba(108, 117, 125, 0.3);
+        }
+        
+        .status.listening {
+            background: rgba(40, 167, 69, 0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        .status.processing {
+            background: rgba(255, 193, 7, 0.3);
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .transcript {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .transcript.has-content {
+            background: rgba(40, 167, 69, 0.2);
+            border: 2px solid rgba(40, 167, 69, 0.5);
+        }
+        
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        
+        .mic-animation {
+            display: inline-block;
+            margin-left: 10px;
+        }
+        
+        .mic-animation.active {
+            animation: bounce 1s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Speech-to-Text Test</h1>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ul>
+                <li>Click "Start Listening" to begin speech recognition</li>
+                <li>Speak clearly into your microphone</li>
+                <li>Click "Stop Listening" when done</li>
+                <li>Test phrases: "Hello AURA", "I need styling help", "Business meeting outfit"</li>
+            </ul>
+        </div>
+        
+        <div id="status" class="status idle">
+            Ready to listen <span id="mic" class="mic-animation">🎤</span>
+        </div>
+        
+        <div class="transcript" id="transcript">
+            <em>Spoken text will appear here...</em>
+        </div>
+        
+        <button id="startBtn" onclick="startListening()">Start Listening</button>
+        <button id="stopBtn" onclick="stopListening()" disabled>Stop Listening</button>
+        <button onclick="clearTranscript()">Clear</button>
+        
+        <div id="error" style="color: #ff6b6b; margin-top: 20px; font-weight: bold;"></div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isListening = false;
+        
+        // Check browser support
+        function initializeSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                document.getElementById('error').innerHTML = '❌ Speech Recognition not supported in this browser.<br>Try Chrome, Edge, or Safari.';
+                document.getElementById('startBtn').disabled = true;
+                return false;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            // Configuration
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            // Event handlers
+            recognition.onstart = function() {
+                console.log('Speech recognition started');
+                isListening = true;
+                updateUI();
+            };
+            
+            recognition.onresult = function(event) {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                const transcriptDiv = document.getElementById('transcript');
+                if (finalTranscript || interimTranscript) {
+                    transcriptDiv.innerHTML = `
+                        <div>
+                            <strong>Final:</strong> ${finalTranscript}<br>
+                            <em>Interim:</em> ${interimTranscript}
+                        </div>
+                    `;
+                    transcriptDiv.classList.add('has-content');
+                }
+                
+                console.log('Final transcript:', finalTranscript);
+                console.log('Interim transcript:', interimTranscript);
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                let errorMessage = '❌ Error: ';
+                switch (event.error) {
+                    case 'not-allowed':
+                        errorMessage += 'Microphone access denied. Please grant permission and reload.';
+                        break;
+                    case 'no-speech':
+                        errorMessage += 'No speech detected. Try speaking louder.';
+                        break;
+                    case 'audio-capture':
+                        errorMessage += 'No microphone found or audio capture failed.';
+                        break;
+                    case 'network':
+                        errorMessage += 'Network error occurred.';
+                        break;
+                    default:
+                        errorMessage += event.error;
+                }
+                document.getElementById('error').innerHTML = errorMessage;
+                stopListening();
+            };
+            
+            recognition.onend = function() {
+                console.log('Speech recognition ended');
+                isListening = false;
+                updateUI();
+            };
+            
+            return true;
+        }
+        
+        function startListening() {
+            if (!recognition) return;
+            
+            document.getElementById('error').innerHTML = '';
+            try {
+                recognition.start();
+            } catch (error) {
+                console.error('Failed to start recognition:', error);
+                document.getElementById('error').innerHTML = '❌ Failed to start speech recognition: ' + error.message;
+            }
+        }
+        
+        function stopListening() {
+            if (recognition && isListening) {
+                recognition.stop();
+            }
+        }
+        
+        function clearTranscript() {
+            const transcriptDiv = document.getElementById('transcript');
+            transcriptDiv.innerHTML = '<em>Spoken text will appear here...</em>';
+            transcriptDiv.classList.remove('has-content');
+            document.getElementById('error').innerHTML = '';
+        }
+        
+        function updateUI() {
+            const statusDiv = document.getElementById('status');
+            const micIcon = document.getElementById('mic');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (isListening) {
+                statusDiv.className = 'status listening';
+                statusDiv.innerHTML = 'Listening... Speak now! <span id="mic" class="mic-animation active">🎤</span>';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                statusDiv.className = 'status idle';
+                statusDiv.innerHTML = 'Ready to listen <span id="mic" class="mic-animation">🎤</span>';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎤 Speech-to-Text Test Initialized');
+            if (initializeSpeechRecognition()) {
+                console.log('✅ Speech Recognition ready');
+            } else {
+                console.log('❌ Speech Recognition not available');
+            }
+        });
+    </script>
+</body>
+</html>

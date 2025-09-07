@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Speech Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .red { background: #f44336; }
+        #result {
+            border: 2px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 100px;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .listening { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .ready { background: #cce7ff; color: #004085; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Minimal Speech Test</h1>
+        
+        <div id="status" class="status ready">Ready to test speech recognition</div>
+        
+        <button id="startBtn" onclick="startSpeech()">Start Listening</button>
+        <button id="stopBtn" onclick="stopSpeech()" disabled class="red">Stop</button>
+        <button onclick="clearResult()">Clear</button>
+        
+        <div id="result">Click "Start Listening" and speak...</div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isListening = false;
+
+        // Check if browser supports speech recognition
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            document.getElementById('status').innerHTML = '❌ Speech Recognition not supported. Use Chrome, Edge, or Safari.';
+            document.getElementById('status').className = 'status error';
+            document.getElementById('startBtn').disabled = true;
+        } else {
+            document.getElementById('status').innerHTML = '✅ Speech Recognition supported';
+            
+            // Initialize recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            // Basic settings - NOT continuous
+            recognition.continuous = false;  // Single result
+            recognition.interimResults = false; // Only final results
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = function() {
+                console.log('Started listening');
+                isListening = true;
+                document.getElementById('status').innerHTML = '🎤 Listening... speak now!';
+                document.getElementById('status').className = 'status listening';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            };
+            
+            recognition.onresult = function(event) {
+                console.log('Got result:', event);
+                const transcript = event.results[0][0].transcript;
+                const confidence = event.results[0][0].confidence;
+                
+                document.getElementById('result').innerHTML = 
+                    `<strong>You said:</strong> "${transcript}"<br>
+                     <small>Confidence: ${Math.round(confidence * 100)}%</small>`;
+                
+                console.log('Transcript:', transcript);
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Speech error:', event.error);
+                document.getElementById('status').innerHTML = `❌ Error: ${event.error}`;
+                document.getElementById('status').className = 'status error';
+                isListening = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                
+                if (event.error === 'not-allowed') {
+                    document.getElementById('result').innerHTML = 
+                        '<strong style="color: red;">Microphone access denied!</strong><br>' +
+                        'Please click the microphone icon in your address bar and allow access.';
+                }
+            };
+            
+            recognition.onend = function() {
+                console.log('Stopped listening');
+                isListening = false;
+                document.getElementById('status').innerHTML = '⏹️ Stopped. Click Start to try again.';
+                document.getElementById('status').className = 'status ready';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            };
+        }
+
+        function startSpeech() {
+            if (recognition && !isListening) {
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Failed to start:', error);
+                    document.getElementById('status').innerHTML = `❌ Failed to start: ${error.message}`;
+                    document.getElementById('status').className = 'status error';
+                }
+            }
+        }
+
+        function stopSpeech() {
+            if (recognition && isListening) {
+                recognition.stop();
+            }
+        }
+
+        function clearResult() {
+            document.getElementById('result').innerHTML = 'Click "Start Listening" and speak...';
+        }
+    </script>
+</body>
+</html>

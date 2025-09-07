@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Speech Recognition</title>
+    <style>
+        body { font-family: Arial; margin: 40px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 8px; max-width: 600px; }
+        button { padding: 15px 25px; font-size: 16px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }
+        .start { background: #4CAF50; color: white; }
+        .stop { background: #f44336; color: white; }
+        .clear { background: #2196F3; color: white; }
+        #log { background: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin: 15px 0; height: 200px; overflow-y: auto; font-family: monospace; }
+        #result { background: #e8f5e8; border: 1px solid #4CAF50; padding: 15px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Speech Recognition Debug</h1>
+        
+        <button class="start" onclick="startDebug()">Start Debug Test</button>
+        <button class="stop" onclick="stopDebug()">Stop</button>
+        <button class="clear" onclick="clearLog()">Clear Log</button>
+        
+        <div id="result">Result will appear here...</div>
+        <div id="log">Debug log:\n</div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let startTime = null;
+
+        function log(message) {
+            const now = new Date().toISOString().split('T')[1].split('.')[0];
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `[${now}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[DEBUG] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = 'Debug log:\n';
+            document.getElementById('result').innerHTML = 'Result will appear here...';
+        }
+
+        function startDebug() {
+            log('🚀 Starting debug test...');
+            
+            // Check support
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                log('❌ Speech Recognition NOT supported');
+                return;
+            }
+            log('✅ Speech Recognition supported');
+
+            // Check if already running
+            if (recognition) {
+                log('⚠️ Recognition already exists, stopping first...');
+                try {
+                    recognition.stop();
+                    recognition = null;
+                } catch (e) {
+                    log(`Error stopping existing: ${e.message}`);
+                }
+            }
+
+            // Create new instance
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                log('✅ New SpeechRecognition instance created');
+            } catch (e) {
+                log(`❌ Failed to create SpeechRecognition: ${e.message}`);
+                return;
+            }
+
+            // Configure with minimal settings
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            log('✅ Configuration set: continuous=false, interimResults=false');
+
+            // Set up event handlers
+            recognition.onstart = function() {
+                startTime = Date.now();
+                log('🎤 onstart: Recognition started');
+            };
+
+            recognition.onresult = function(event) {
+                const duration = Date.now() - startTime;
+                log(`📝 onresult: Got result after ${duration}ms`);
+                
+                if (event.results.length > 0) {
+                    const transcript = event.results[0][0].transcript;
+                    const confidence = event.results[0][0].confidence;
+                    log(`📝 Transcript: "${transcript}" (confidence: ${Math.round(confidence * 100)}%)`);
+                    document.getElementById('result').innerHTML = `<strong>You said:</strong> "${transcript}"<br><small>Confidence: ${Math.round(confidence * 100)}%</small>`;
+                } else {
+                    log('⚠️ No results in event');
+                }
+            };
+
+            recognition.onerror = function(event) {
+                const duration = Date.now() - startTime;
+                log(`❌ onerror: ${event.error} after ${duration}ms`);
+                
+                // Detailed error analysis
+                switch (event.error) {
+                    case 'not-allowed':
+                        log('🚫 Microphone permission denied');
+                        break;
+                    case 'no-speech':
+                        log('🔇 No speech detected');
+                        break;
+                    case 'aborted':
+                        log('⚠️ Recognition aborted - this is our main issue!');
+                        break;
+                    case 'network':
+                        log('🌐 Network error');
+                        break;
+                    case 'service-not-allowed':
+                        log('🚫 Speech service not allowed');
+                        break;
+                    default:
+                        log(`❓ Unknown error: ${event.error}`);
+                }
+            };
+
+            recognition.onend = function() {
+                const duration = Date.now() - startTime;
+                log(`⏹️ onend: Recognition ended after ${duration}ms`);
+            };
+
+            // Start recognition
+            try {
+                log('🚀 Calling recognition.start()...');
+                recognition.start();
+                log('✅ recognition.start() called successfully');
+            } catch (e) {
+                log(`❌ Failed to start: ${e.message}`);
+            }
+        }
+
+        function stopDebug() {
+            if (recognition) {
+                log('🛑 Manually stopping recognition...');
+                recognition.stop();
+            } else {
+                log('⚠️ No recognition to stop');
+            }
+        }
+
+        log('🔧 Debug page loaded. Click "Start Debug Test" to begin.');
+    </script>
+</body>
+</html>

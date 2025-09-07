@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection Test - AURA</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #fff, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        #video {
+            width: 640px;
+            height: 480px;
+            max-width: 100%;
+            display: block;
+        }
+        
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            min-width: 120px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .emotions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .emotion-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .emotion-card.dominant {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.2);
+            transform: scale(1.05);
+        }
+        
+        .emotion-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .emotion-bar {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .emotion-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+        
+        #loading {
+            background: rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .face-info {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>😊 Emotion Detection Test</h1>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ul>
+                <li><strong>Click "Start Camera"</strong> to begin emotion detection</li>
+                <li><strong>Position your face</strong> clearly in the camera view</li>
+                <li><strong>Try different emotions:</strong> Happy 😊, Sad 😢, Surprised 😮, Angry 😠, Fearful 😨, Disgusted 🤢, Neutral 😐</li>
+                <li><strong>Watch the bars</strong> change as your expression changes</li>
+                <li><strong>The dominant emotion</strong> will be highlighted in gold</li>
+            </ul>
+        </div>
+        
+        <div id="loading" class="hidden">
+            <h3>🔄 Loading face detection models...</h3>
+            <p>This may take a moment on the first load.</p>
+        </div>
+        
+        <div class="video-container">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="overlay"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startCamera()">Start Camera</button>
+            <button id="stopBtn" onclick="stopCamera()" disabled>Stop Camera</button>
+            <button onclick="toggleDetection()" id="detectBtn" disabled>Start Detection</button>
+        </div>
+        
+        <div id="status" class="status">
+            Ready to detect emotions. Click "Start Camera" to begin.
+        </div>
+        
+        <div id="faceInfo" class="face-info hidden">
+            <h4>👤 Face Detection Status</h4>
+            <p id="faceCount">No faces detected</p>
+            <p id="faceDetails"></p>
+        </div>
+        
+        <div id="emotions" class="emotions">
+            <div class="emotion-card" data-emotion="happy">
+                <div class="emotion-name">😊 Happy</div>
+                <div class="emotion-bar">
+                    <div class="emotion-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+            <div class="emotion-card" data-emotion="sad">
+                <div class="emotion-name">😢 Sad</div>
+                <div class="emotion-bar">
+                    <div class="emotion-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+            <div class="emotion-card" data-emotion="angry">
+                <div class="emotion-name">😠 Angry</div>
+                <div class="emotion-bar">
+                    <div class="emotion-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+            <div class="emotion-card" data-emotion="fearful">
+                <div class="emotion-name">😨 Fearful</div>
+                <div class="emotion-bar">
+                    <div class="emotion-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+            <div class="emotion-card" data-emotion="disgusted">
+                <div class="emotion-name">🤢 Disgusted</div>
+                <div class="emotion-bar">
+                    <div class="emotion-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+            <div class="emotion-card" data-emotion="surprised">
+                <div class="emotion-name">😮 Surprised</div>
+                <div class="emotion-bar">
+                    <div class="emotion-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+            <div class="emotion-card" data-emotion="neutral">
+                <div class="emotion-name">😐 Neutral</div>
+                <div class="emotion-bar">
+                    <div class="emotion-fill" style="width: 0%">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let video;
+        let canvas;
+        let ctx;
+        let stream;
+        let isModelLoaded = false;
+        let isDetecting = false;
+        let detectionInterval;
+        
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/model/';
+        
+        async function loadModels() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('status').innerHTML = '🔄 Loading AI models for emotion detection...';
+            
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+                
+                isModelLoaded = true;
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('status').innerHTML = '✅ Models loaded! Ready to detect emotions.';
+                console.log('✅ Face-api models loaded successfully');
+                
+            } catch (error) {
+                console.error('❌ Error loading models:', error);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('status').innerHTML = `❌ Failed to load models: ${error.message}`;
+            }
+        }
+        
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                
+                video.srcObject = stream;
+                
+                video.addEventListener('loadedmetadata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('detectBtn').disabled = false;
+                    document.getElementById('status').innerHTML = '📹 Camera started! Click "Start Detection" to begin emotion analysis.';
+                });
+                
+            } catch (error) {
+                console.error('❌ Camera error:', error);
+                let errorMsg = '❌ Camera access failed: ';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg += 'Permission denied. Please allow camera access.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg += 'No camera found.';
+                } else {
+                    errorMsg += error.message;
+                }
+                document.getElementById('status').innerHTML = errorMsg;
+            }
+        }
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            isDetecting = false;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('detectBtn').disabled = true;
+            document.getElementById('detectBtn').innerHTML = 'Start Detection';
+            document.getElementById('status').innerHTML = 'Camera stopped. Click "Start Camera" to restart.';
+            document.getElementById('faceInfo').classList.add('hidden');
+            
+            resetEmotionBars();
+        }
+        
+        function toggleDetection() {
+            if (!isModelLoaded) {
+                document.getElementById('status').innerHTML = '⚠️ Models not loaded yet. Please wait...';
+                return;
+            }
+            
+            if (isDetecting) {
+                clearInterval(detectionInterval);
+                isDetecting = false;
+                document.getElementById('detectBtn').innerHTML = 'Start Detection';
+                document.getElementById('status').innerHTML = '⏸️ Detection paused. Click "Start Detection" to resume.';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                document.getElementById('faceInfo').classList.add('hidden');
+            } else {
+                isDetecting = true;
+                document.getElementById('detectBtn').innerHTML = 'Stop Detection';
+                document.getElementById('status').innerHTML = '🔍 Detecting emotions in real-time...';
+                document.getElementById('faceInfo').classList.remove('hidden');
+                
+                detectionInterval = setInterval(detectEmotions, 100);
+            }
+        }
+        
+        async function detectEmotions() {
+            if (!video || video.readyState !== 4) return;
+            
+            try {
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceExpressions();
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const faceCount = detections.length;
+                document.getElementById('faceCount').innerHTML = `${faceCount} face${faceCount !== 1 ? 's' : ''} detected`;
+                
+                if (detections.length > 0) {
+                    const detection = detections[0]; // Use first detected face
+                    const expressions = detection.expressions;
+                    
+                    // Draw face bounding box
+                    const box = detection.detection.box;
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(box.x, box.y, box.width, box.height);
+                    
+                    // Update emotion bars
+                    updateEmotionBars(expressions);
+                    
+                    // Find dominant emotion
+                    let maxEmotion = '';
+                    let maxValue = 0;
+                    for (const [emotion, value] of Object.entries(expressions)) {
+                        if (value > maxValue) {
+                            maxValue = value;
+                            maxEmotion = emotion;
+                        }
+                    }
+                    
+                    // Display face details
+                    document.getElementById('faceDetails').innerHTML = 
+                        `Dominant emotion: <strong>${maxEmotion}</strong> (${(maxValue * 100).toFixed(1)}%)`;
+                    
+                } else {
+                    resetEmotionBars();
+                    document.getElementById('faceDetails').innerHTML = 'No face detected in frame';
+                }
+                
+            } catch (error) {
+                console.error('Detection error:', error);
+            }
+        }
+        
+        function updateEmotionBars(expressions) {
+            // Remove previous dominant highlighting
+            document.querySelectorAll('.emotion-card').forEach(card => {
+                card.classList.remove('dominant');
+            });
+            
+            let dominantEmotion = '';
+            let dominantValue = 0;
+            
+            for (const [emotion, value] of Object.entries(expressions)) {
+                const percentage = Math.round(value * 100);
+                const card = document.querySelector(`[data-emotion="${emotion}"]`);
+                
+                if (card) {
+                    const fill = card.querySelector('.emotion-fill');
+                    fill.style.width = `${percentage}%`;
+                    fill.textContent = `${percentage}%`;
+                    
+                    if (value > dominantValue) {
+                        dominantValue = value;
+                        dominantEmotion = emotion;
+                    }
+                }
+            }
+            
+            // Highlight dominant emotion
+            if (dominantEmotion && dominantValue > 0.1) { // Only highlight if > 10%
+                const dominantCard = document.querySelector(`[data-emotion="${dominantEmotion}"]`);
+                if (dominantCard) {
+                    dominantCard.classList.add('dominant');
+                }
+            }
+        }
+        
+        function resetEmotionBars() {
+            document.querySelectorAll('.emotion-fill').forEach(fill => {
+                fill.style.width = '0%';
+                fill.textContent = '0%';
+            });
+            document.querySelectorAll('.emotion-card').forEach(card => {
+                card.classList.remove('dominant');
+            });
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('overlay');
+            ctx = canvas.getContext('2d');
+            
+            console.log('🎭 Emotion Detection Test Initialized');
+            
+            // Load models automatically
+            loadModels();
+        });
+    </script>
+</body>
+</html>

@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Sparkles, Download, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Sparkles, Download, RefreshCw, ArrowLeft, Users, ShoppingBag } from 'lucide-react';
+import ShoppingSuggestions from './ShoppingSuggestions';
 
-const StyleBoard = ({ generatedImage, selectedClothing, onReset }) => {
+const StyleBoard = ({ generatedImage, selectedClothing, conversationContext, onReset, onCoupleVisualization }) => {
   const [isRefining, setIsRefining] = useState(false);
+  const [showShopping, setShowShopping] = useState(false);
 
   const handleDownload = () => {
     // TODO: Implement actual download functionality
@@ -58,21 +60,41 @@ const StyleBoard = ({ generatedImage, selectedClothing, onReset }) => {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <button
+                onClick={handleDownload}
+                className="flex-1 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={handleRefine}
+                disabled={isRefining}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefining ? 'animate-spin' : ''}`} />
+                <span>{isRefining ? 'Refining...' : 'Refine Style'}</span>
+              </button>
+            </div>
+            
+            {/* Couple Visualization Button */}
             <button
-              onClick={handleDownload}
-              className="flex-1 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              onClick={() => onCoupleVisualization && onCoupleVisualization()}
+              className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-300"
             >
-              <Download className="w-4 h-4" />
-              <span>Download</span>
+              <Users className="w-4 h-4" />
+              <span>Create Couple Visualization</span>
             </button>
+
+            {/* Shopping Button */}
             <button
-              onClick={handleRefine}
-              disabled={isRefining}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              onClick={() => setShowShopping(!showShopping)}
+              className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-300"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefining ? 'animate-spin' : ''}`} />
-              <span>{isRefining ? 'Refining...' : 'Refine Style'}</span>
+              <ShoppingBag className="w-4 h-4" />
+              <span>{showShopping ? 'Hide Shopping' : 'Shop This Look'}</span>
             </button>
           </div>
         </div>
@@ -188,6 +210,35 @@ const StyleBoard = ({ generatedImage, selectedClothing, onReset }) => {
           <div>• Iterative style editing</div>
         </div>
       </div>
+      
+      {/* Shopping Suggestions */}
+      {showShopping && (
+        <div className="mt-8">
+          <ShoppingSuggestions
+            recommendations={{
+              suit: {
+                style: selectedClothing?.type || 'suit',
+                color: selectedClothing?.color || 'navy',
+                fit: 'regular'
+              },
+              shirt: {
+                color: 'white',
+                style: 'dress shirt'
+              },
+              accessories: {
+                tie: 'silk tie',
+                watch: 'dress watch',
+                shoes: 'oxford shoes'
+              }
+            }}
+            context={conversationContext}
+            onPurchaseClick={(item) => {
+              console.log('Purchase clicked:', item.name);
+              // Analytics tracking could go here
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };
