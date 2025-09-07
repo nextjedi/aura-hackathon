@@ -1,11 +1,11 @@
 // Direct Gemini API Service - Frontend Implementation
 // Bypasses backend API issues by calling Gemini directly
 
-const GEMINI_API_KEY = 'AIzaSyB_Hg03KpIW-li8tf9OLg3qjvxmivw8mME';
+const GEMINI_API_KEY = 'dummy_key_for_frontend_use_only'; // Replace with actual key in production
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Mock mode for testing when API quota is reached
-const MOCK_MODE = true; // Set to true for testing, false for real API calls
+const MOCK_MODE = false; // Set to true for testing, false for real API calls
 
 // Models for different tasks
 const MODELS = {

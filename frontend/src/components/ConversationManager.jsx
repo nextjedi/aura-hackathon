@@ -47,11 +47,6 @@ const ConversationManager = ({ onContextGathered, isDemo, selectedClothing }) =>
   const [showWakeDetector, setShowWakeDetector] = useState(false); // Disable for text mode
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [textInput, setTextInput] = useState('');
-  const [developmentMode, setDevelopmentMode] = useState(false); // Switch to actual API mode
-  const [generatedPrompt, setGeneratedPrompt] = useState('');
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [waitingForAIResponse, setWaitingForAIResponse] = useState(false);
-  const [aiResponseInput, setAiResponseInput] = useState('');
   const [showEmotionDetector, setShowEmotionDetector] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState(null);
   const [emotionHistory, setEmotionHistory] = useState([]);
@@ -125,7 +120,7 @@ const ConversationManager = ({ onContextGathered, isDemo, selectedClothing }) =>
     // Skip automatic greeting - wait for user input first
 
     // Initialize direct speech recognition (working pattern from diagnostic)
-    if (!developmentMode && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    if (('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
 
@@ -250,16 +245,8 @@ RESPONSE:`;
     // Add user message
     addMessage('user', textInput.trim());
     
-    if (useActualAPI) {
-      // Use actual Gemini API
-      await handleActualAPICall(textInput.trim());
-    } else {
-      // Development mode - show manual prompt
-      const prompt = generatePromptForUser(textInput.trim());
-      setGeneratedPrompt(prompt);
-      setShowPrompt(true);
-      setWaitingForAIResponse(true);
-    }
+    // Always use actual Gemini API
+    await handleActualAPICall(textInput.trim());
     
     setTextInput('');
   };
@@ -300,25 +287,6 @@ RESPONSE:`;
     }
   };
 
-  const handleAIResponseSubmit = (e) => {
-    e.preventDefault();
-    if (!aiResponseInput.trim()) return;
-    
-    // Add AI response as Mandy's message
-    addMessage('ai', aiResponseInput.trim());
-    
-    // Process the response to update conversation state
-    processUserInput(conversation[conversation.length - 2]?.content || ''); // Get the user's message
-    
-    // Reset prompt state
-    setShowPrompt(false);
-    setWaitingForAIResponse(false);
-    setAiResponseInput('');
-  };
-
-  const copyPromptToClipboard = () => {
-    navigator.clipboard.writeText(generatedPrompt);
-  };
 
   const handleWakeWord = (transcript) => {
     console.log('Wake word detected in conversation:', transcript);
@@ -714,11 +682,6 @@ RESPONSE:`;
                 Demo Mode
               </span>
             )}
-            {developmentMode && (
-              <span className="text-sm text-green-400 bg-green-400/20 px-2 py-1 rounded">
-                Development Mode
-              </span>
-            )}
             {useActualAPI && (
               <span className="text-sm text-blue-400 bg-blue-400/20 px-2 py-1 rounded">
                 🤖 Live API
@@ -831,91 +794,10 @@ RESPONSE:`;
         </div>
       )}
 
-      {/* Generated Prompt Display */}
-      {showPrompt && (
-        <div className="mb-4">
-          <div className="bg-blue-800/50 rounded-lg p-4 border border-blue-500/30">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-blue-400" />
-                <span className="text-sm font-semibold text-blue-300">Generated Prompt for AI:</span>
-              </div>
-              <button
-                onClick={copyPromptToClipboard}
-                className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs font-semibold transition-colors"
-              >
-                Copy
-              </button>
-            </div>
-            <div className="bg-gray-900/50 rounded p-3 mb-3 max-h-40 overflow-y-auto">
-              <pre className="text-xs text-gray-200 whitespace-pre-wrap">{generatedPrompt}</pre>
-            </div>
-            <p className="text-xs text-blue-300">
-              1. Copy this prompt 2. Paste into Gemini/ChatGPT 3. Copy the AI response 4. Paste below
-            </p>
-          </div>
-        </div>
-      )}
 
-      {/* AI Response Input */}
-      {waitingForAIResponse && (
-        <form onSubmit={handleAIResponseSubmit} className="mb-4">
-          <div className="bg-green-800/50 rounded-lg p-4 border border-green-500/30">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageCircle className="w-4 h-4 text-green-400" />
-              <span className="text-sm font-semibold text-green-300">Paste AI Response (as Mandy):</span>
-            </div>
-            <div className="flex gap-3">
-              <textarea
-                value={aiResponseInput}
-                onChange={(e) => setAiResponseInput(e.target.value)}
-                placeholder="Paste Mandy's AI-generated response here..."
-                className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-green-500 focus:outline-none min-h-20 resize-y"
-                disabled={isProcessing}
-              />
-              <button
-                type="submit"
-                disabled={!aiResponseInput.trim() || isProcessing}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-2 rounded-lg font-semibold transition-colors"
-              >
-                Add Response
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
 
-      {/* Development Mode Text Input */}
-      {developmentMode && currentStep !== 'wake_word' && !waitingForAIResponse && (
-        <form onSubmit={handleTextSubmit} className="mb-4">
-          <div className="bg-gray-800/50 rounded-lg p-4 border border-purple-500/30">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageCircle className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-semibold text-purple-300">Development Mode - Type your response:</span>
-            </div>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Type your message to Mandy..."
-                className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
-                disabled={isProcessing}
-              />
-              <button
-                type="submit"
-                disabled={!textInput.trim() || isProcessing}
-                className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-6 py-2 rounded-lg font-semibold transition-colors"
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
-
-      {/* Speech Controls (hidden in dev mode) */}
-      {!developmentMode && !showWakeDetector && (
+      {/* Speech Controls */}
+      {!showWakeDetector && (
         <div className="flex items-center justify-center gap-4 mb-4">
           <button
             onClick={startListening}
@@ -964,8 +846,8 @@ RESPONSE:`;
         </div>
       )}
 
-      {/* Text Chat Interface (hidden by default) */}
-      {showTextChat && !developmentMode && (
+      {/* Text Chat Interface */}
+      {showTextChat && (
         <div className="mb-4">
           <div className="bg-blue-600/10 border border-blue-500/30 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
@@ -1019,8 +901,8 @@ RESPONSE:`;
         </div>
       )}
 
-      {/* Current Speech Display (hidden in dev mode) */}
-      {!developmentMode && currentTranscript && (
+      {/* Current Speech Display */}
+      {currentTranscript && (
         <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-3 mb-4">
           <div className="flex items-center gap-2 mb-2">
             <Mic className="w-4 h-4 text-blue-400 animate-pulse" />
@@ -1138,25 +1020,12 @@ RESPONSE:`;
       {/* Instructions */}
       <div className="text-center">
         <p className="text-sm text-gray-400 mb-2">
-          {developmentMode && currentStep === 'greeting' && "Type: Tell Mandy about your styling challenge"}
-          {developmentMode && currentStep === 'relationship' && "Type: Correct any assumptions about your relationship"}
-          {developmentMode && currentStep === 'location' && "Type: Share where you're going"}
-          {developmentMode && currentStep === 'assets' && "Type: Your preferences while image capture is simulated"}
-          {developmentMode && currentStep === 'body_analysis' && "Type: Your style preferences"}
-          {!developmentMode && currentStep === 'greeting' && "Tell Mandy about your styling challenge"}
-          {!developmentMode && currentStep === 'relationship' && "Correct any assumptions about your relationship"}
-          {!developmentMode && currentStep === 'location' && "Share where you're going"}
-          {!developmentMode && currentStep === 'assets' && "Upload your closet image when ready"}
-          {!developmentMode && currentStep === 'body_analysis' && "Share your style preferences"}
+          {currentStep === 'greeting' && "Tell Mandy about your styling challenge"}
+          {currentStep === 'relationship' && "Correct any assumptions about your relationship"}
+          {currentStep === 'location' && "Share where you're going"}
+          {currentStep === 'assets' && "Upload your closet image when ready"}
+          {currentStep === 'body_analysis' && "Share your style preferences"}
         </p>
-        
-        {developmentMode && (
-          <div className="mt-3 p-3 bg-green-600/20 border border-green-500/30 rounded-lg">
-            <p className="text-xs text-green-300 text-center">
-              🧪 Development Mode: 1) Type message → 2) Copy generated prompt → 3) Paste into Gemini → 4) Paste AI response back
-            </p>
-          </div>
-        )}
       </div>
       </div>
 
